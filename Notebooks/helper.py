@@ -9,6 +9,10 @@ from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.graphics.gofplots import qqplot
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.distributions.empirical_distribution import ECDF
+import warnings
+
+# Unterdrücken aller Warnungen
+warnings.filterwarnings('ignore')
 
 
 def plot_lines(df, x, y, title1, title2, xlabel, ylabel, x_ticks):
@@ -61,6 +65,40 @@ def plot_acf_pacf(series, lags=20):
     
     plt.tight_layout()
     plt.show()
+
+
+def find_best_arima(series):
+    """
+    Fits ARIMA models with combinations of parameters and finds the best model based on AIC.
+    """
+    best_aic = float('inf')
+    best_order = None
+    best_model = None
+
+    p_values = range(0, 3)
+    d_values = range(0, 2)
+    q_values = range(0, 3)
+
+    for p in p_values:
+        for d in d_values:
+            for q in q_values:
+                try:
+                    # Fit ARIMA model and calculate AIC
+                    model_fit = arima_model(series, p, d, q)
+                    aic = model_fit.aic
+
+                    # Check if we have a new best model
+                    if aic < best_aic:
+                        best_aic = aic
+                        best_order = (p, d, q)
+                        best_model = model_fit
+                except:
+                    continue
+
+    return best_order, best_model
+
+# This function can now be called with a time series and a range of parameters to find the best ARIMA model
+
 
 
 def arima_model(data, p, d, q):
