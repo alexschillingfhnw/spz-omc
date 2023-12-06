@@ -1,10 +1,14 @@
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+from scipy import stats
+from scipy.stats import norm
 from statsmodels.tsa.stattools import acf, pacf, adfuller
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.graphics.gofplots import qqplot
 from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.distributions.empirical_distribution import ECDF
 
 
 def plot_lines(df, x, y, title1, title2, xlabel, ylabel, x_ticks):
@@ -92,10 +96,8 @@ def plot_residuals(residuals, title):
     """
     Plots the residuals of the given series.
     """
-    # Create a subplot grid of 1 row and 2 columns
     fig, axs = plt.subplots(1, 2, figsize=(15, 5))
 
-    # First subplot for the line plot of residuals
     sns.lineplot(data=residuals, ax=axs[0])
     axs[0].set_title('Linienplot von' + title)
     axs[0].set_xlabel('Jahr')
@@ -106,12 +108,11 @@ def plot_residuals(residuals, title):
     if hasattr(residuals, 'index'):
         axs[0].set_xticks(residuals.index[::2])
 
-    # Second subplot for the KDE plot of residuals
     sns.kdeplot(data=residuals, fill=True, ax=axs[1])
     axs[1].set_title('KDE Plot von ' + title)
     axs[1].set_xlabel('Residuen')
 
-    plt.tight_layout()  # Adjust layout to fit everything nicely
+    plt.tight_layout()
     plt.show()
 
 
@@ -131,3 +132,64 @@ def get_predictions(n, model, data):
     prognose_conf_int = prognose.conf_int(alpha=0.05)  # 95% Konfidenzintervall
 
     return prognose_start, prognose_ende, prognose_mean, prognose_conf_int
+
+
+def shapiro_test(residuals):
+    shapiro_test = stats.shapiro(residuals)
+    return {
+        "Wert": shapiro_test[0],
+        "p-Wert": shapiro_test[1],
+        "Interpretation": "Normalverteilt" if shapiro_test[1] > 0.05 else "Nicht normalverteilt"
+    }
+
+
+def plot_residuals_histogram(residuals, num_bins=15):
+    """
+    Plots a histogram of the residuals overlaid with a normal distribution fit.
+    """
+    plt.hist(residuals, bins=num_bins, density=True, label='Residuen', alpha=0.6)
+  
+    # Wahrscheinlichkeitsdichte der Normalverteilung anpassen
+    mu, sig = norm.fit(residuals)
+    xmin, xmax = plt.xlim()
+    x = np.linspace(xmin, xmax, 100)
+    p = norm.pdf(x, mu, sig)
+  
+    # Normalverteilungskurve plotten
+    plt.plot(x, p, 'k', linewidth=2, label='Normalverteilung')
+    plt.title('Histogramm der Residuen mit Normalverteilungsfit')
+    plt.legend()
+    plt.show()
+
+
+def plot_residuals_ecdf(residuals):
+    """
+    Plots the empirical cumulative distribution function (ECDF) of the residuals
+    alongside the CDF of a normal distribution fit to the residuals.
+    """
+    ecdf = ECDF(residuals)
+    
+    # Fit a normal distribution to the data
+    mu, sigma = norm.fit(residuals)
+    
+    # Calculate the CDF for the fitted normal distribution
+    x = np.linspace(min(residuals), max(residuals), 100)
+    fitted_cdf = norm.cdf(x, loc=mu, scale=sigma)
+
+    plt.plot(ecdf.x, ecdf.y, label='Empirische Verteilung (Residuen)')
+    plt.plot(x, fitted_cdf, label='Normalverteilung')
+
+    plt.title('Vergleich der empirischen Verteilung mit der Normalverteilung')
+    plt.xlabel('Wert der Residuen')
+    plt.ylabel('Kumulierte Wahrscheinlichkeit')
+    plt.legend()
+    plt.show()
+
+
+def plot_qq(residuals):
+    """
+    Creates a Q-Q plot to compare the quantiles of residuals to a normal distribution.
+    """
+    fig = qqplot(residuals, line='s')
+    plt.title('QQ-Plot, Normalverteilung')
+    plt.show()
