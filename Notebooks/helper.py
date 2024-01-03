@@ -10,6 +10,8 @@ from statsmodels.graphics.gofplots import qqplot
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.distributions.empirical_distribution import ECDF
 import warnings
+import statsmodels.api as sm
+from statsmodels.regression.linear_model import OLS
 
 # Unterdrücken aller Warnungen
 warnings.filterwarnings('ignore')
@@ -34,19 +36,38 @@ def plot_lines(df, x, y, title1, title2, xlabel, ylabel, x_ticks):
     plt.show()
 
 
-def adf_test(series):
-    """
-    Performs the Augmented Dickey-Fuller test on the given series and prints the results.
-    """
-    result = adfuller(series, autolag='AIC')
-    adf_stats = result[0]
-    p_value = result[1]
-    critical_values = result[4]
+def test_stationarity(timeseries, lags=8, plot=True):
+    
+    print('Ergebnisse des Dickey-Fuller Tests:')
 
-    print(f'Augmented Dickey-Fuller Test:')
-    print(f'ADF-Statistik: {adf_stats}')
-    print(f'p-Wert: {p_value}')
-    print(f'Kritische Werte: {critical_values}\n')
+    dftest = adfuller(timeseries, autolag='AIC')
+    dfoutput = pd.Series(dftest[0:4], index=['Test Statistic','p-value','#Lags Used','Number of Observations Used'])
+
+    for key, value in dftest[4].items():
+        dfoutput['Critical Value (%s)' % key] = value
+    print(dfoutput)
+
+    if plot:
+        # Create figure and axes
+        fig, axes = plt.subplots(1, 3, figsize=(18, 4))
+        
+        # Plot the original time series
+        axes[0].plot(timeseries)
+        axes[0].set_title('Original')
+        axes[0].set_xlabel('Zeit')
+        axes[0].set_ylabel('Zeitreihe')
+        axes[0].grid(True)
+        
+        # Plot ACF
+        plot_acf(timeseries, lags=lags, ax=axes[1])
+        axes[1].set_title('ACF')
+        
+        # Plot PACF
+        plot_pacf(timeseries, lags=lags, ax=axes[2])
+        axes[2].set_title('PACF')
+        
+        plt.tight_layout()
+        plt.show()
 
 
 def plot_acf_pacf(series, lags=20):
@@ -99,8 +120,6 @@ def find_best_arima(series):
 
 # This function can now be called with a time series and a range of parameters to find the best ARIMA model
 
-
-
 def arima_model(data, p, d, q):
     """
     Trains an ARIMA model with the given parameters and returns the fitted model.
@@ -137,7 +156,7 @@ def plot_residuals(residuals, title):
     fig, axs = plt.subplots(1, 2, figsize=(15, 5))
 
     sns.lineplot(data=residuals, ax=axs[0])
-    axs[0].set_title('Linienplot von' + title)
+    axs[0].set_title('Linienplot von ' + title)
     axs[0].set_xlabel('Jahr')
     axs[0].set_ylabel('Residuen')
     axs[0].grid(True, alpha=0.3)
@@ -151,6 +170,52 @@ def plot_residuals(residuals, title):
     axs[1].set_xlabel('Residuen')
 
     plt.tight_layout()
+    plt.show()
+
+
+def fit_trend_model(series):
+    """
+    Fits a linear trend model to the series.
+    """
+    X = np.arange(len(series)).reshape(-1, 1)  # Time variable
+    Y = series.values
+    model = OLS(Y, sm.add_constant(X)).fit()
+    trend = model.predict(sm.add_constant(X))
+    residuals = series - trend
+    return trend, residuals, model
+
+def check_stationarity(residuals):
+    """
+    Performs ADF test on residuals to check for stationarity.
+    """
+    adf_result = adfuller(residuals)
+    print(f'ADF Statistic: {adf_result[0]}')
+    print(f'p-value: {adf_result[1]}')
+    for key, value in adf_result[4].items():
+        print(f'Critial Values: {key}, {value}')
+
+    if adf_result[1] < 0.05:
+        print("Die Residuen sind stationär.")
+    else:
+        print("Die Residuen sind nicht stationär und könnten von einem ARIMA-Modell profitieren.")
+
+
+def plot_trend(series, trend, title='Trend Modell'):
+    """
+    Plots the original series and the fitted trend line.
+    
+    :param series: The time series data as a Pandas Series.
+    :param trend: The fitted trend values as a Pandas Series or array.
+    :param title: The title of the plot.
+    """
+    plt.figure(figsize=(15, 5))
+    plt.plot(series, label='Original Series')
+    plt.plot(series.index, trend, label='Trend', color='red', linestyle='--')
+    
+    plt.title(title)
+    plt.xlabel('Time')
+    plt.ylabel('Values')
+    plt.legend()
     plt.show()
 
 
