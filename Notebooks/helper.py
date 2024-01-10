@@ -36,7 +36,7 @@ def plot_lines(df, x, y, title1, title2, xlabel, ylabel, x_ticks):
     plt.show()
 
 
-def test_stationarity(timeseries, lags=8, plot=True):
+def test_stationarity(timeseries, lags=8, plot=True, title='Zeitreihe'):
     
     print('Ergebnisse des Dickey-Fuller Tests:')
 
@@ -53,7 +53,7 @@ def test_stationarity(timeseries, lags=8, plot=True):
         
         # Plot the original time series
         axes[0].plot(timeseries)
-        axes[0].set_title('Original')
+        axes[0].set_title(title)
         axes[0].set_xlabel('Zeit')
         axes[0].set_ylabel('Zeitreihe')
         axes[0].grid(True)
